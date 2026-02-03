@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Legal Docling Web</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f6f7fb;
+      color: #1d2330;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    header {
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    p {
+      margin-top: 0;
+      color: #4b5563;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+    label {
+      font-weight: 600;
+    }
+    input[type="file"] {
+      display: block;
+      margin-top: 8px;
+    }
+    button {
+      margin-top: 16px;
+      background: #1f4b99;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #1f2937;
+      margin-left: 8px;
+    }
+    .output {
+      margin-top: 24px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 12px;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .hint {
+      font-size: 13px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Legal Docling</h1>
+      <p>Convierte PDFs y documentos jurídicos a Markdown con segmentación semántica.</p>
+    </header>
+
+    <div class="card">
+      <form action="/convert" method="post" enctype="multipart/form-data">
+        <label for="document">Selecciona un archivo</label>
+        <input type="file" id="document" name="document" accept=".pdf,.docx,.txt,.md,.html,.htm" required />
+        <p class="hint">Formatos soportados: {{ supported }}</p>
+        <button type="submit">Convertir a Markdown</button>
+      </form>
+
+      {% if markdown_output is not none %}
+      <div class="output">
+        <h2>Resultado</h2>
+        <textarea id="markdown-output" readonly>{{ markdown_output }}</textarea>
+        <div>
+          <button type="button" onclick="downloadMarkdown()">Descargar Markdown</button>
+          <button type="button" class="secondary" onclick="copyMarkdown()">Copiar</button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function downloadMarkdown() {
+      const content = document.getElementById('markdown-output');
+      if (!content) return;
+      const blob = new Blob([content.value], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'documento.md';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyMarkdown() {
+      const content = document.getElementById('markdown-output');
+      if (!content) return;
+      await navigator.clipboard.writeText(content.value);
+      alert('Markdown copiado al portapapeles.');
+    }
+  </script>
+</body>
+</html>
