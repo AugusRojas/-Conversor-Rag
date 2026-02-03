@@ -13,10 +13,6 @@ authors = [{ name = "Conversor-Rag" }]
 
 [project.scripts]
 legal-docling = "legal_docling.cli:main"
-legal-docling-web = "legal_docling.web:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-legal_docling = ["templates/*.html"]
