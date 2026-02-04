@@ -4,7 +4,8 @@ const headingPatterns = [
   /^(DISPOSICIONES|CONSIDERANDO|RESUELVE|ANEXO)\b/i
 ];
 
-export const MAX_WORDS_PER_CHUNK = 350;
+export const MAX_CHARS_PER_CHUNK = 3800;
+export const CHUNK_OVERLAP = 400;
 
 export type Section = {
   title: string;
@@ -43,23 +44,31 @@ export function splitIntoSections(text: string): Section[] {
   return sections;
 }
 
-export function chunkSection(section: Section, maxWords = MAX_WORDS_PER_CHUNK): string[] {
+export function chunkSection(
+  section: Section,
+  maxChars = MAX_CHARS_PER_CHUNK,
+  overlap = CHUNK_OVERLAP
+): string[] {
   const paragraphs = collapseParagraphs(section.body);
   const chunks: string[] = [];
   let current: string[] = [];
-  let currentWords = 0;
+  let currentChars = 0;
 
   for (const paragraph of paragraphs) {
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    const paragraphWords = words.length;
-    if (current.length > 0 && currentWords + paragraphWords > maxWords) {
-      chunks.push(current.join("\n\n").trim());
-      current = [];
-      currentWords = 0;
+    const paragraphChars = paragraph.length;
+    const separatorChars = current.length > 0 ? 2 : 0;
+
+    if (current.length > 0 && currentChars + separatorChars + paragraphChars > maxChars) {
+      const chunkText = current.join("\n\n").trim();
+      chunks.push(chunkText);
+
+      const overlapText = chunkText.slice(-overlap).trim();
+      current = overlapText ? [overlapText] : [];
+      currentChars = overlapText.length;
     }
 
     current.push(paragraph);
-    currentWords += paragraphWords;
+    currentChars += (current.length > 1 ? 2 : 0) + paragraphChars;
   }
 
   if (current.length > 0) {

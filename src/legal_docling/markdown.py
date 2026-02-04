@@ -9,19 +9,15 @@ from .chunker import Section, chunk_section, split_into_sections
 @dataclass
 class Chunk:
     title: str
-    index: int
     text: str
 
 
 def build_markdown(text: str, source_name: str) -> str:
     sections = split_into_sections(text)
     chunks: list[Chunk] = []
-    chunk_index = 1
-
     for section in sections:
         for chunk in chunk_section(section):
-            chunks.append(Chunk(title=section.title, index=chunk_index, text=chunk))
-            chunk_index += 1
+            chunks.append(Chunk(title=section.title, text=chunk))
 
     header = _build_header(source_name, len(chunks))
     body = "\n\n".join(_render_chunk(chunk) for chunk in chunks)
@@ -40,8 +36,7 @@ def _build_header(source_name: str, total_chunks: int) -> str:
 
 def _render_chunk(chunk: Chunk) -> str:
     return (
-        f"## Chunk {chunk.index}\n\n"
-        f"**Sección:** {chunk.title}\n\n"
+        f"{chunk.title}\n\n"
         f"{chunk.text}\n\n"
         f"---"
     )

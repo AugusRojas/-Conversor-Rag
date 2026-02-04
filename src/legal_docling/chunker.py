@@ -9,7 +9,8 @@ HEADING_PATTERNS = [
     re.compile(r"^(DISPOSICIONES|CONSIDERANDO|RESUELVE|ANEXO)\b", re.IGNORECASE),
 ]
 
-MAX_WORDS_PER_CHUNK = 350
+MAX_CHARS_PER_CHUNK = 3800
+CHUNK_OVERLAP = 400
 
 
 @dataclass
@@ -44,22 +45,28 @@ def split_into_sections(text: str) -> list[Section]:
     return sections
 
 
-def chunk_section(section: Section, max_words: int = MAX_WORDS_PER_CHUNK) -> list[str]:
+def chunk_section(
+    section: Section,
+    max_chars: int = MAX_CHARS_PER_CHUNK,
+    overlap: int = CHUNK_OVERLAP,
+) -> list[str]:
     paragraphs = _collapse_paragraphs(section.body)
     chunks: list[str] = []
     current: list[str] = []
-    current_words = 0
+    current_chars = 0
 
     for paragraph in paragraphs:
-        words = paragraph.split()
-        paragraph_words = len(words)
-        if current and current_words + paragraph_words > max_words:
-            chunks.append("\n\n".join(current).strip())
-            current = []
-            current_words = 0
+        paragraph_chars = len(paragraph)
+        separator_chars = 2 if current else 0
+        if current and current_chars + separator_chars + paragraph_chars > max_chars:
+            chunk_text = "\n\n".join(current).strip()
+            chunks.append(chunk_text)
+            overlap_text = chunk_text[-overlap:].strip()
+            current = [overlap_text] if overlap_text else []
+            current_chars = len(overlap_text)
 
         current.append(paragraph)
-        current_words += paragraph_words
+        current_chars += (2 if len(current) > 1 else 0) + paragraph_chars
 
     if current:
         chunks.append("\n\n".join(current).strip())
