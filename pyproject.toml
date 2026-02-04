@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "legal-docling"
+version = "0.1.0"
+description = "Conversor de documentos jurídicos a Markdown con chunking semántico."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Conversor-Rag" }]
+
+[project.scripts]
+legal-docling = "legal_docling.cli:main"
+legal-docling-web = "legal_docling.web:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+legal_docling = ["templates/*.html"]
