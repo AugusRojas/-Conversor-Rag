@@ -28,7 +28,7 @@ pip install -e .
 npm install
 ```
 
-> Nota: el OCR usa `tesseract.js` y `pdfjs-dist` con `canvas`. En algunos entornos pueden requerirse dependencias nativas para `canvas`. Si esas dependencias no están instaladas, la app seguirá funcionando y omitirá el OCR.
+> Nota: el OCR usa las herramientas de sistema `tesseract` y `pdftoppm` (poppler). Si no están instaladas, la app seguirá funcionando y omitirá el OCR.
 
 ## Uso (CLI)
 

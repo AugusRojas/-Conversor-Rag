@@ -10,14 +10,11 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
-    "canvas": "^2.11.2",
     "mammoth": "^1.6.0",
     "next": "^14.2.3",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^4.2.67",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tesseract.js": "^5.0.4"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",
