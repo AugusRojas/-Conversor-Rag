@@ -5,18 +5,18 @@ import { useState } from "react";
 const supported = [".pdf", ".docx", ".txt", ".md", ".html", ".htm"].join(", ");
 
 export default function HomePage() {
-  const [markdown, setMarkdown] = useState<string | null>(null);
+  const [results, setResults] = useState<Array<{ filename: string; markdown: string }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
-    setMarkdown(null);
+    setResults(null);
 
     const formData = new FormData(event.currentTarget);
-    const file = formData.get("document") as File | null;
-    if (!file || file.size === 0) {
+    const fileList = formData.getAll("document").filter((entry) => entry instanceof File) as File[];
+    if (fileList.length === 0 || fileList.every((file) => file.size === 0)) {
       setError("No se seleccionó ningún archivo.");
       return;
     }
@@ -32,7 +32,7 @@ export default function HomePage() {
         throw new Error(payload.error || "Error al convertir el archivo.");
       }
       const payload = await response.json();
-      setMarkdown(payload.markdown);
+      setResults(payload.results);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado.");
     } finally {
@@ -40,19 +40,17 @@ export default function HomePage() {
     }
   };
 
-  const downloadMarkdown = () => {
-    if (!markdown) return;
+  const downloadMarkdown = (filename: string, markdown: string) => {
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "documento.md";
+    anchor.download = `${filename.replace(/\.[^/.]+$/, "")}.md`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
-  const copyMarkdown = async () => {
-    if (!markdown) return;
+  const copyMarkdown = async (markdown: string) => {
     await navigator.clipboard.writeText(markdown);
     alert("Markdown copiado al portapapeles.");
   };
@@ -72,9 +70,12 @@ export default function HomePage() {
             name="document"
             type="file"
             accept={supported}
+            multiple
             required
           />
-          <p className="hint">Formatos soportados: {supported}</p>
+          <p className="hint">
+            Formatos soportados: {supported}. Máximo 5 archivos por carga.
+          </p>
           <button type="submit" disabled={loading}>
             {loading ? "Convirtiendo..." : "Convertir a Markdown"}
           </button>
@@ -87,18 +88,30 @@ export default function HomePage() {
           </div>
         )}
 
-        {markdown && (
+        {results && (
           <div className="output">
-            <h2>Resultado</h2>
-            <textarea value={markdown} readOnly />
-            <div>
-              <button type="button" onClick={downloadMarkdown}>
-                Descargar Markdown
-              </button>
-              <button type="button" className="secondary" onClick={copyMarkdown}>
-                Copiar
-              </button>
-            </div>
+            <h2>Resultados</h2>
+            {results.map((result) => (
+              <div key={result.filename}>
+                <h3>{result.filename}</h3>
+                <textarea value={result.markdown} readOnly />
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => downloadMarkdown(result.filename, result.markdown)}
+                  >
+                    Descargar Markdown
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => copyMarkdown(result.markdown)}
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

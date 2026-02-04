@@ -7,18 +7,29 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const file = formData.get("document");
+  const files = formData.getAll("document");
 
-  if (!file || !(file instanceof File)) {
+  const validFiles = files.filter((item) => item instanceof File) as File[];
+  if (validFiles.length === 0) {
     return NextResponse.json({ error: "No se seleccionó ningún archivo." }, { status: 400 });
   }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  if (validFiles.length > 5) {
+    return NextResponse.json(
+      { error: "Máximo 5 archivos por carga." },
+      { status: 400 }
+    );
+  }
 
   try {
-    const text = await extractText(buffer, file.name || "documento");
-    const markdown = buildMarkdown(text, file.name || "documento");
-    return NextResponse.json({ markdown });
+    const results = [];
+    for (const file of validFiles) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const filename = file.name || "documento";
+      const text = await extractText(buffer, filename);
+      const markdown = buildMarkdown(text, filename);
+      results.push({ filename, markdown });
+    }
+    return NextResponse.json({ results });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al convertir el archivo.";
     return NextResponse.json({ error: message }, { status: 500 });

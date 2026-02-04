@@ -8,7 +8,7 @@ Conversor de documentos jurídicos (PDF, DOCX, TXT, HTML) a **Markdown** con **c
 - Detección de encabezados legales típicos (TÍTULO, CAPÍTULO, ARTÍCULO, SECCIÓN, etc.).
 - Chunking por sección con tamaño máximo de caracteres y solapamiento para mantener contexto.
 - Salida en Markdown con metadatos y separadores de chunks.
-- Interfaz web en Next.js para subir documentos y descargar el Markdown.
+- Interfaz web en Next.js para subir hasta 5 documentos y descargar el Markdown.
 
 ## Instalación
 
