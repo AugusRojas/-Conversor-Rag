@@ -9,6 +9,7 @@ Conversor de documentos jurídicos (PDF, DOCX, TXT, HTML) a **Markdown** con **c
 - Chunking por sección con tamaño máximo de caracteres y solapamiento para mantener contexto.
 - Salida en Markdown con metadatos y separadores de chunks.
 - Interfaz web en Next.js para subir hasta 5 documentos y descargar el Markdown.
+- OCR automático para PDFs escaneados o con texto embebido mínimo.
 
 ## Instalación
 
@@ -26,6 +27,8 @@ pip install -e .
 ```bash
 npm install
 ```
+
+> Nota: el OCR usa `tesseract.js` y `pdfjs-dist` con `canvas`. En algunos entornos pueden requerirse dependencias nativas para `canvas`.
 
 ## Uso (CLI)
 
