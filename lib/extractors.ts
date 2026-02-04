@@ -2,9 +2,11 @@ import type { Buffer } from "node:buffer";
 import * as cheerio from "cheerio";
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
-import { createCanvas } from "canvas";
-import { createWorker } from "tesseract.js";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+type OcrDeps = {
+  createCanvas: typeof import("canvas").createCanvas;
+  createWorker: typeof import("tesseract.js").createWorker;
+  getDocument: typeof import("pdfjs-dist/legacy/build/pdf.mjs").getDocument;
+};
 
 export const supportedExtensions = [".pdf", ".docx", ".txt", ".md", ".html", ".htm"];
 
@@ -39,7 +41,9 @@ async function extractPdf(buffer: Buffer): Promise<string> {
   const extracted = data.text.trim();
   if (shouldRunOcr(extracted, data.numpages)) {
     const ocrText = await extractPdfWithOcr(buffer);
-    return [extracted, ocrText].filter(Boolean).join("\n\n").trim();
+    if (ocrText) {
+      return [extracted, ocrText].filter(Boolean).join("\n\n").trim();
+    }
   }
   return extracted;
 }
@@ -72,15 +76,20 @@ function shouldRunOcr(text: string, pages: number | undefined): boolean {
 }
 
 async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
-  const pdf = await getDocument({ data: buffer }).promise;
-  const worker = await createWorker("spa");
+  const deps = await loadOcrDeps();
+  if (!deps) {
+    return "";
+  }
+
+  const pdf = await deps.getDocument({ data: buffer }).promise;
+  const worker = await deps.createWorker("spa");
   const results: string[] = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = createCanvas(viewport.width, viewport.height);
+      const canvas = deps.createCanvas(viewport.width, viewport.height);
       const context = canvas.getContext("2d");
       await page.render({ canvasContext: context, viewport }).promise;
 
@@ -97,4 +106,28 @@ async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
   }
 
   return results.join("\n\n").trim();
+}
+
+async function loadOcrDeps(): Promise<OcrDeps | null> {
+  try {
+    const [{ createCanvas }, { createWorker }, pdfModule] = await Promise.all([
+      import("canvas"),
+      import("tesseract.js"),
+      import("pdfjs-dist/legacy/build/pdf.mjs").catch(() =>
+        import("pdfjs-dist/legacy/build/pdf.js")
+      )
+    ]);
+
+    return {
+      createCanvas,
+      createWorker,
+      getDocument: pdfModule.getDocument
+    };
+  } catch (error) {
+    console.warn(
+      "OCR opcional no disponible. Instala canvas, pdfjs-dist y tesseract.js para habilitarlo.",
+      error
+    );
+    return null;
+  }
 }
