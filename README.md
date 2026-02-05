@@ -28,7 +28,28 @@ pip install -e .
 npm install
 ```
 
-> Nota: el OCR usa las herramientas de sistema `tesseract` y `pdftoppm` (poppler). Si no están instaladas, la app seguirá funcionando y omitirá el OCR.
+> Nota: el OCR usa las herramientas de sistema `tesseract` y `pdftoppm` (poppler). Si no están instaladas, la app seguirá funcionando y omitirá el OCR. Para mejorar la calidad, el OCR se ejecuta a 300 DPI en escala de grises y con fallback de idioma `spa` a `eng`.
+
+#### Instalación de OCR (tesseract + pdftoppm)
+
+**Ubuntu/Debian**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr poppler-utils
+```
+
+**macOS (Homebrew)**
+
+```bash
+brew install tesseract poppler
+```
+
+**Windows (Chocolatey)**
+
+```powershell
+choco install tesseract poppler -y
+```
 
 ## Uso (CLI)
 

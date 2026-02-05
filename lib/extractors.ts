@@ -89,7 +89,7 @@ async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
 
   try {
     await fs.writeFile(pdfPath, buffer);
-    await execFileAsync("pdftoppm", ["-png", "-r", "200", pdfPath, outputPrefix]);
+    await execFileAsync("pdftoppm", ["-png", "-r", "300", "-gray", pdfPath, outputPrefix]);
 
     const files = (await fs.readdir(workDir))
       .filter((file) => file.startsWith("page-") && file.endsWith(".png"))
@@ -97,9 +97,9 @@ async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
 
     for (const file of files) {
       const imagePath = join(workDir, file);
-      const { stdout } = await execFileAsync("tesseract", [imagePath, "stdout", "-l", "spa"]);
-      if (stdout.trim()) {
-        results.push(stdout.trim());
+      const ocrText = await runTesseract(imagePath, ["spa", "eng"]);
+      if (ocrText) {
+        results.push(ocrText);
       }
     }
   } finally {
@@ -121,4 +121,25 @@ async function hasOcrTools(): Promise<boolean> {
     );
     return false;
   }
+}
+
+async function runTesseract(imagePath: string, languages: string[]): Promise<string> {
+  for (const language of languages) {
+    try {
+      const { stdout } = await execFileAsync("tesseract", [
+        imagePath,
+        "stdout",
+        "-l",
+        language,
+        "--psm",
+        "6"
+      ]);
+      if (stdout.trim()) {
+        return stdout.trim();
+      }
+    } catch (error) {
+      console.warn(`OCR falló con idioma ${language}. Intentando fallback.`, error);
+    }
+  }
+  return "";
 }
