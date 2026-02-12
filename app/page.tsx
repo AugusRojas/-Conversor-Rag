@@ -5,7 +5,18 @@ import { useState } from "react";
 const supported = [".pdf", ".docx", ".txt", ".md", ".html", ".htm"].join(", ");
 
 export default function HomePage() {
-  const [results, setResults] = useState<Array<{ filename: string; markdown: string }> | null>(null);
+  const [results, setResults] = useState<
+    Array<{
+      filename: string;
+      markdown: string;
+      diagnostics?: {
+        parser: string;
+        ocrUsed: boolean;
+        ocrLanguage?: string;
+        notes: string[];
+      };
+    }> | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -94,6 +105,17 @@ export default function HomePage() {
             {results.map((result) => (
               <div key={result.filename}>
                 <h3>{result.filename}</h3>
+                {result.diagnostics && (
+                  <p className="hint">
+                    Método: {result.diagnostics.parser}
+                    {result.diagnostics.ocrUsed
+                      ? ` | OCR: sí (${result.diagnostics.ocrLanguage ?? "desconocido"})`
+                      : " | OCR: no"}
+                    {result.diagnostics.notes.length > 0
+                      ? ` | ${result.diagnostics.notes.join(" ")}`
+                      : ""}
+                  </p>
+                )}
                 <textarea value={result.markdown} readOnly />
                 <div>
                   <button

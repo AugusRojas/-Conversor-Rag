@@ -12,7 +12,27 @@ const execFileAsync = promisify(execFile);
 
 export const supportedExtensions = [".pdf", ".docx", ".txt", ".md", ".html", ".htm"];
 
+export type ExtractionDiagnostics = {
+  parser: "pdf-parse" | "ocr" | "plain";
+  ocrUsed: boolean;
+  ocrLanguage?: string;
+  notes: string[];
+};
+
+export type ExtractionResult = {
+  text: string;
+  diagnostics: ExtractionDiagnostics;
+};
+
 export async function extractText(buffer: Buffer, filename: string): Promise<string> {
+  const result = await extractTextWithDiagnostics(buffer, filename);
+  return result.text;
+}
+
+export async function extractTextWithDiagnostics(
+  buffer: Buffer,
+  filename: string
+): Promise<ExtractionResult> {
   const extension = getExtension(filename);
   if (!supportedExtensions.includes(extension)) {
     throw new Error(
@@ -24,13 +44,22 @@ export async function extractText(buffer: Buffer, filename: string): Promise<str
     return extractPdf(buffer);
   }
   if (extension === ".docx") {
-    return extractDocx(buffer);
+    return {
+      text: await extractDocx(buffer),
+      diagnostics: { parser: "plain", ocrUsed: false, notes: ["Extracción DOCX nativa."] }
+    };
   }
   if (extension === ".html" || extension === ".htm") {
-    return extractHtml(buffer.toString("utf-8"));
+    return {
+      text: extractHtml(buffer.toString("utf-8")),
+      diagnostics: { parser: "plain", ocrUsed: false, notes: ["Extracción HTML nativa."] }
+    };
   }
 
-  return buffer.toString("utf-8");
+  return {
+    text: buffer.toString("utf-8"),
+    diagnostics: { parser: "plain", ocrUsed: false, notes: ["Lectura directa de texto."] }
+  };
 }
 
 function getExtension(filename: string): string {
@@ -38,23 +67,57 @@ function getExtension(filename: string): string {
   return index >= 0 ? filename.slice(index).toLowerCase() : "";
 }
 
-async function extractPdf(buffer: Buffer): Promise<string> {
+async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
   try {
     const data = await pdfParse(buffer);
     const extracted = data.text.trim();
     if (shouldRunOcr(extracted, data.numpages)) {
-      const ocrText = await extractPdfWithOcr(buffer);
-      if (ocrText) {
-        return [extracted, ocrText].filter(Boolean).join("\n\n").trim();
+      const ocrResult = await extractPdfWithOcr(buffer);
+      if (ocrResult.text) {
+        return {
+          text: [extracted, ocrResult.text].filter(Boolean).join("\n\n").trim(),
+          diagnostics: {
+            parser: "pdf-parse",
+            ocrUsed: true,
+            ocrLanguage: ocrResult.language,
+            notes: ["pdf-parse devolvió poco texto, se complementó con OCR.", ...ocrResult.notes]
+          }
+        };
       }
+      return {
+        text: extracted,
+        diagnostics: {
+          parser: "pdf-parse",
+          ocrUsed: false,
+          notes: [
+            "pdf-parse devolvió poco texto, pero OCR no pudo ejecutarse o no devolvió contenido.",
+            ...ocrResult.notes
+          ]
+        }
+      };
     }
-    return extracted;
+    return {
+      text: extracted,
+      diagnostics: {
+        parser: "pdf-parse",
+        ocrUsed: false,
+        notes: ["Extracción PDF nativa exitosa. OCR no fue necesario."]
+      }
+    };
   } catch (error) {
     console.warn("Fallo pdf-parse, se intentará OCR directo.", error);
 
-    const ocrText = await extractPdfWithOcr(buffer);
-    if (ocrText) {
-      return ocrText;
+    const ocrResult = await extractPdfWithOcr(buffer);
+    if (ocrResult.text) {
+      return {
+        text: ocrResult.text,
+        diagnostics: {
+          parser: "ocr",
+          ocrUsed: true,
+          ocrLanguage: ocrResult.language,
+          notes: ["pdf-parse falló, se resolvió con OCR directo.", ...ocrResult.notes]
+        }
+      };
     }
 
     throw new Error(
@@ -90,15 +153,18 @@ function shouldRunOcr(text: string, pages: number | undefined): boolean {
   return avgCharsPerPage < 80;
 }
 
-async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
+async function extractPdfWithOcr(
+  buffer: Buffer
+): Promise<{ text: string; language?: string; notes: string[] }> {
   if (!(await hasOcrTools())) {
-    return "";
+    return { text: "", notes: ["No se detectaron herramientas OCR en PATH."] };
   }
 
   const workDir = await fs.mkdtemp(join(tmpdir(), "legal-docling-"));
   const pdfPath = join(workDir, "input.pdf");
   const outputPrefix = join(workDir, "page");
   const results: string[] = [];
+  let detectedLanguage: string | undefined;
 
   try {
     await fs.writeFile(pdfPath, buffer);
@@ -112,14 +178,21 @@ async function extractPdfWithOcr(buffer: Buffer): Promise<string> {
       const imagePath = join(workDir, file);
       const ocrText = await runTesseract(imagePath, ["spa", "eng"]);
       if (ocrText) {
-        results.push(ocrText);
+        results.push(ocrText.text);
+      }
+      if (ocrText?.language) {
+        detectedLanguage = ocrText.language;
       }
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true });
   }
 
-  return results.join("\n\n").trim();
+  return {
+    text: results.join("\n\n").trim(),
+    language: detectedLanguage,
+    notes: results.length > 0 ? ["OCR ejecutado correctamente."] : ["OCR no devolvió texto."]
+  };
 }
 
 async function hasOcrTools(): Promise<boolean> {
@@ -136,7 +209,10 @@ async function hasOcrTools(): Promise<boolean> {
   }
 }
 
-async function runTesseract(imagePath: string, languages: string[]): Promise<string> {
+async function runTesseract(
+  imagePath: string,
+  languages: string[]
+): Promise<{ text: string; language?: string } | null> {
   for (const language of languages) {
     try {
       const { stdout } = await execFileAsync("tesseract", [
@@ -148,11 +224,11 @@ async function runTesseract(imagePath: string, languages: string[]): Promise<str
         "6"
       ]);
       if (stdout.trim()) {
-        return stdout.trim();
+        return { text: stdout.trim(), language };
       }
     } catch (error) {
       console.warn(`OCR falló con idioma ${language}. Intentando fallback.`, error);
     }
   }
-  return "";
+  return null;
 }
